@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:jiffy/jiffy.dart';
+import 'package:weather_ui/components/fragments/widgets/error_widget.dart';
+import 'package:weather_ui/components/fragments/widgets/loading_widget.dart';
+import 'package:weather_ui/models/weather_model.dart';
 import 'package:weather_ui/style/colors.dart';
 import 'package:weather_ui/style/textstyle.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,19 +16,19 @@ class TodayPage extends StatefulHookWidget {
 }
 
 class _TodayPageState extends State<TodayPage> {
-  @override
-  void initState() {
-    context.read(locationVm).getLocation();
-    super.initState();
-  }
+  DateTime dateTime = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
-    final locationProvider = useProvider(locationVm);
+    final weatherProvider = useProvider(weatherVm);
+    final WeatherData weatherData = weatherProvider.weatherData;
 
-    if (locationProvider.currentAddress == null) {
-      return Container(
-          alignment: Alignment.center, child: CircularProgressIndicator());
+    if (weatherProvider.isLoading) {
+      return LoadingWidget();
+    }
+
+    if (weatherProvider.hasError) {
+      return WErrorWidget();
     }
 
     return Column(
@@ -51,23 +55,24 @@ class _TodayPageState extends State<TodayPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${locationProvider.currentAddress}',
+                              '${weatherProvider.currentAddress}',
                               style: WStyles.locationStyle,
                             ),
                             Text(
-                              'Friday June 30',
+                              '${Jiffy(dateTime).MMMEd}',
                               style: WStyles.dateStyle,
                             ),
                             SizedBox(height: 20),
                             Text(
-                              'Light rain',
+                              '${weatherData.current.weather.first.description}'
+                                  .toUpperCase(),
                               style: WStyles.conditionStyle,
                             )
                           ],
                         ),
                       ),
-                      Image.asset(
-                        'assets/images/Wed.png',
+                      Image.network(
+                        'https://openweathermap.org/img/w/${weatherData.current.weather.first.icon}.png',
                         color: WColors.white,
                         scale: 0.7,
                       )
@@ -78,7 +83,7 @@ class _TodayPageState extends State<TodayPage> {
                 Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Text(
-                    '14c',
+                    '${weatherData.current.temp}\u2103',
                     style: WStyles.temperatureStyle,
                   ),
                 )
@@ -100,9 +105,12 @@ class _TodayPageState extends State<TodayPage> {
   }
 }
 
-class WeatherConditionWidget extends StatelessWidget {
+class WeatherConditionWidget extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, ScopedReader watch) {
+    final weatherProvider = watch(weatherVm);
+    final WeatherData weatherData = weatherProvider.weatherData;
+
     return Column(
       children: [
         Row(
@@ -120,7 +128,9 @@ class WeatherConditionWidget extends StatelessWidget {
                   style: WStyles.titleStyle,
                 ),
                 Text.rich(TextSpan(children: [
-                  TextSpan(text: '22c\t\t\t', style: WStyles.subtitleStyle),
+                  TextSpan(
+                      text: '${weatherData.current.feelsLike}\u2103\t\t\t',
+                      style: WStyles.subtitleStyle),
                   TextSpan(text: 'Today', style: TextStyle(color: Colors.blue))
                 ])),
               ],
@@ -139,7 +149,7 @@ class WeatherConditionWidget extends StatelessWidget {
                   style: WStyles.titleStyle,
                 ),
                 Text(
-                  '94%',
+                  '${weatherData.current.humidity}',
                   style: WStyles.subtitleStyle,
                 )
               ],
@@ -164,7 +174,7 @@ class WeatherConditionWidget extends StatelessWidget {
                   style: WStyles.titleStyle,
                 ),
                 Text(
-                  '13km/h',
+                  '${weatherData.current.windSpeed}km/h',
                   style: WStyles.subtitleStyle,
                 )
               ],
@@ -183,7 +193,7 @@ class WeatherConditionWidget extends StatelessWidget {
                   style: WStyles.titleStyle,
                 ),
                 Text(
-                  '7',
+                  '${weatherData.current.uvi}',
                   style: WStyles.subtitleStyle,
                 )
               ],

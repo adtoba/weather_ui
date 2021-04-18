@@ -1,15 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:jiffy/jiffy.dart';
+import 'package:weather_ui/components/fragments/widgets/error_widget.dart';
+import 'package:weather_ui/components/fragments/widgets/loading_widget.dart';
+import 'package:weather_ui/components/layouts/listviews/weekly_forecast_list.dart';
+import 'package:weather_ui/models/weather_model.dart';
 import 'package:weather_ui/style/colors.dart';
 import 'package:weather_ui/style/textstyle.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:weather_ui/values/providers.dart';
 
-class WeeklyPage extends StatefulWidget {
+class WeeklyPage extends StatefulHookWidget {
   @override
   _WeeklyPageState createState() => _WeeklyPageState();
 }
 
 class _WeeklyPageState extends State<WeeklyPage> {
+  final DateTime dateTime = DateTime.now();
+
   @override
   Widget build(BuildContext context) {
+    final weatherProvider = useProvider(weatherVm);
+    final WeatherData weatherData = weatherProvider.weatherData;
+
+    if (weatherProvider.isLoading) {
+      return LoadingWidget();
+    }
+
+    if (weatherProvider.hasError) {
+      return WErrorWidget();
+    }
+
     return Container(
       height: MediaQuery.of(context).size.height,
       width: MediaQuery.of(context).size.width,
@@ -37,23 +59,24 @@ class _WeeklyPageState extends State<WeeklyPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'New Delhi',
+                              '${weatherProvider.currentAddress}',
                               style: WStyles.locationStyle,
                             ),
                             Text(
-                              'Friday June 30',
+                              '${Jiffy(dateTime).MMMEd}',
                               style: WStyles.dateStyle,
                             ),
                             SizedBox(height: 20),
                             Text(
-                              'Light rain',
+                              '${weatherData.current.weather.first.description}'
+                                  .toUpperCase(),
                               style: WStyles.conditionStyle,
                             )
                           ],
                         ),
                       ),
-                      Image.asset(
-                        'assets/images/Wed.png',
+                      Image.network(
+                        'https://openweathermap.org/img/w/${weatherData.current.weather.first.icon}.png',
                         color: WColors.white,
                         scale: 0.7,
                       )
@@ -63,7 +86,7 @@ class _WeeklyPageState extends State<WeeklyPage> {
                 Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Text(
-                    '14c',
+                    '${weatherData.current.temp}\u2103',
                     style: WStyles.temperatureStyle,
                   ),
                 )
@@ -73,6 +96,10 @@ class _WeeklyPageState extends State<WeeklyPage> {
           Expanded(
             child: Container(
               color: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: WeeklyForcastList(),
+              ),
             ),
           )
         ],

@@ -3,6 +3,8 @@ import 'package:weather_ui/screens/tabs/share.dart';
 import 'package:weather_ui/screens/tabs/today.dart';
 import 'package:weather_ui/screens/tabs/weekly.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:weather_ui/values/providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomeTabs extends StatefulHookWidget {
   @override
@@ -16,6 +18,7 @@ class _HomeTabsState extends State<HomeTabs> with TickerProviderStateMixin {
 
   @override
   void initState() {
+    context.read(weatherVm).getLocation(context);
     pageController = PageController(keepPage: true, initialPage: 0);
     super.initState();
   }

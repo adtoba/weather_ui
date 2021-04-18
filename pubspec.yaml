@@ -21,6 +21,7 @@ dependencies:
   flutter_riverpod: ^0.14.0+1
   hooks_riverpod: ^0.14.0+1
   geocoder: ^0.2.1
+  jiffy: ^4.1.0
   # geocoding: ^2.0.0
   location: ^4.1.1
 
