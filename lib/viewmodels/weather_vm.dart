@@ -1,8 +1,12 @@
+import 'dart:io';
+
+import 'package:dio/adapter.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:geocoder/geocoder.dart';
-import 'package:location/location.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:location/location.dart' as l;
 import 'package:weather_ui/models/weather_model.dart';
 import 'package:weather_ui/values/constants.dart';
 
@@ -10,8 +14,7 @@ class WeatherViewModel extends ChangeNotifier {
   String _currentAddress;
   String get currentAddress => _currentAddress;
 
-  Location location = Location();
-  LocationData currentPosition;
+  l.Location location = l.Location();
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -21,68 +24,82 @@ class WeatherViewModel extends ChangeNotifier {
 
   WeatherData weatherData;
 
+  Position position;
+
   Dio _dio = Dio();
 
-  void getLocation(BuildContext context) async {
+  void getCurrentLocation(BuildContext context) async {
     _isLoading = true;
     notifyListeners();
 
-    bool _serviceEnabled;
-
-    PermissionStatus _permissionGranted;
-
-    _serviceEnabled = await location.requestService();
+    bool _serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    LocationPermission _permissionStatus;
 
     if (!_serviceEnabled) {
       _serviceEnabled = await location.requestService();
-      if (!_serviceEnabled) {
-        return;
-      }
-    }
-
-    _permissionGranted = await location.hasPermission();
-    if (_permissionGranted == PermissionStatus.denied) {
-      _permissionGranted = await location.requestPermission();
-      if (_permissionGranted != PermissionStatus.granted) {
-        return;
-      }
-    }
-
-    currentPosition = await location.getLocation();
-
-    _getAddress(currentPosition.latitude, currentPosition.longitude)
-        .then((value) {
-      _currentAddress = '${value.first.locality}';
-      if (_currentAddress != null) {
-        getWeatherDetails(
-            context, currentPosition.latitude, currentPosition.longitude);
-      }
       notifyListeners();
-    });
+    }
+
+    if (_serviceEnabled) {
+      _permissionStatus = await Geolocator.checkPermission();
+
+      if (_permissionStatus == LocationPermission.denied ||
+          _permissionStatus == LocationPermission.deniedForever) {
+        await Geolocator.requestPermission().then((event) async {
+          if (event == LocationPermission.always ||
+              event == LocationPermission.whileInUse) {
+            position = await Geolocator.getCurrentPosition();
+
+            _getAddress(position.latitude, position.longitude).then((value) {
+              _currentAddress = value.first.locality ?? 'Unknown location';
+              notifyListeners();
+            });
+            getWeatherDetails(context, position.latitude, position.longitude);
+          }
+        });
+      } else {
+        position = await Geolocator.getCurrentPosition();
+        _getAddress(position.latitude, position.longitude).then((value) {
+          _currentAddress = value.first.locality ?? 'Unknown location';
+          notifyListeners();
+        });
+        getWeatherDetails(context, position.latitude, position.longitude);
+      }
+    }
   }
 
-  Future<List<Address>> _getAddress(double lat, double long) async {
-    final coordinates = new Coordinates(lat, long);
-
-    List<Address> add =
-        await Geocoder.local.findAddressesFromCoordinates(coordinates);
+  Future<List<Placemark>> _getAddress(double lat, double long) async {
+    List<Placemark> add = await placemarkFromCoordinates(lat, long);
+    Placemark placemark = add[0];
 
     return add;
   }
 
   Future<void> getWeatherDetails(
       BuildContext context, double lat, double long) async {
+    _dio.options.connectTimeout = 30000;
+    _dio.options.receiveTimeout = 30000;
+    (_dio.httpClientAdapter as DefaultHttpClientAdapter).onHttpClientCreate =
+        (HttpClient client) {
+      client.badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
+      return client;
+    };
+
     try {
-      Response response = await _dio.get(
-          '$BASE_URL/data/2.5/onecall?lat=$lat&lon=$long&exclude=hourly,minutely,alerts&appid=$APP_ID');
+      String url =
+          'https://api.openweathermap.org/data/2.5/onecall?lat=$lat&lon=$long&exclude=hourly,minutely,alerts&appid=$APP_ID';
+
+      print(url);
+      Response response = await _dio.get(url);
 
       if (response.statusCode == 200) {
-        weatherData = WeatherData.fromJson(response.data);
+        _hasError = false;
         notifyListeners();
-      } else {
-        return null;
+        weatherData = WeatherData.fromJson(response.data);
       }
     } on DioError catch (e) {
+      print(e.toString());
       _hasError = true;
       notifyListeners();
       showDialog(

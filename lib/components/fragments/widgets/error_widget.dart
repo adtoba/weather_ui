@@ -16,7 +16,7 @@ class WErrorWidget extends ConsumerWidget {
           SizedBox(height: 10),
           TextButton.icon(
               onPressed: () {
-                weatherProvider.getLocation(context);
+                weatherProvider.getCurrentLocation(context);
               },
               icon: Icon(Icons.refresh),
               label: Text('Try again'))

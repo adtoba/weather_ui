@@ -18,7 +18,7 @@ class _HomeTabsState extends State<HomeTabs> with TickerProviderStateMixin {
 
   @override
   void initState() {
-    context.read(weatherVm).getLocation(context);
+    context.read(weatherVm).getCurrentLocation(context);
     pageController = PageController(keepPage: true, initialPage: 0);
     super.initState();
   }
